@@ -163,34 +163,43 @@ namespace AFrame.Core
             return control;
         }
         #endregion
-
-        public static T CreateInstance<T>(IContext context, Control parent) where T : Control
+        
+        public static Control CreateInstance(Type type, IContext context, Control parent)
         {
             //If type has constructor with 1 parameter and is type IContext. Then use that.
             //Else use default constructor.
+            
+            Control local;
+            ConstructorInfo constructor = type.GetConstructor(new Type[] { context.GetType() });
+            if (constructor != null)
+            {
+                local = constructor.Invoke(new object[] { context }) as Control;
+                if (local == null)
+                {
+                    throw new Exception("Type is not of type 'Control': " + type.Name);
+                }
+                local.Parent = parent;
+                return local;
+            }
+            constructor = type.GetConstructor(Type.EmptyTypes);
+            if (constructor == null)
+            {
+                throw new Exception("No appropriate constructors found for " + type.Name);
+            }
+            local = constructor.Invoke(new object[0]) as Control;
+            if (local == null)
+            {
+                throw new Exception("Type is not of type 'Control': " + type.Name);
+            }
+            local.Context = context; 
+            local.Parent = parent;
+            return local;
+        }
 
+        public static T CreateInstance<T>(IContext context, Control parent) where T : Control
+        {
             var type = typeof(T);
-
-            //First constructor attempt.
-            var ctor = type.GetConstructor(new[] { context.GetType() });
-            if (ctor != null)
-            {
-                var ctrl = (T)ctor.Invoke(new object[] { context });
-                ctrl.Parent = parent;
-                return ctrl;
-            }
-
-            //Second constructor attempt.
-            ctor = type.GetConstructor(Type.EmptyTypes);
-            if (ctor != null)
-            {
-                var ctrl = (T)ctor.Invoke(new object[] { });
-                ctrl.Context = context;
-                ctrl.Parent = parent;
-                return ctrl;
-            }
-
-            throw new Exception("No appropriate constructors found for " + type.Name);
+            return CreateInstance(type, context, parent) as T;
         }
 
         #region Create Controls
